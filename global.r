@@ -4,6 +4,8 @@ SYNC = Sys.getenv("SYNC")
 source(file.path(SYNC, "libs", "lib.r"))
 source("hdf5.r")
 source("convert.r")
+source("thetbl.r")
+source("global_2.r")
 
 library(h5r)
 library(stringr)
@@ -11,14 +13,9 @@ library(shiny)
 library(ggbio) ## ggplot
 library(biomaRt)
 suppressMessages(library(data.table))
-suppressMessages(library("BSgenome.Hsapiens.UCSC.hg19")) # Hsapiens
 suppressMessages(library(IlluminaHumanMethylation450kanno.ilmn12.hg19))
 suppressMessages(library("GenomicFeatures")) # GenomicRanges 
 
-## CHROMOSOMES
-ICHR = c(1:22, "X", "Y")
-CCHR = paste("chr", ICHR, sep="")
-CHR_LEN = seqlengths(Hsapiens)[CCHR] # hg19 lengths
 
 ##
 HGNC2ENSG = data.table(fread("tables/ensg2hgnc.tbl"))
@@ -46,7 +43,8 @@ SDRF_FN = "tables/mage-450k_merged_sdrf.txt"
 make_aliquot_meta = function(aliquot_fn=ALIQUOT_FN, sdrf_fn=SDRF_FN) {
     aliquot = tread(aliquot_fn)
     aliquot = aliquot[!is.na(aliquot$bio.bcr_aliquot_uuid),]
-    ALIQUOT = aliquot[,c("bio.bcr_aliquot_uuid", "bio.bcr_sample_uuid", "admin.disease_code", "bio.sample_type_id")]
+    ALIQUOT = aliquot[,c("bio.bcr_aliquot_uuid", "bio.bcr_sample_uuid", "admin.disease_code",
+        "bio.sample_type_id")]
     ALIQUOT$bio.bcr_aliquot_uuid = toupper(ALIQUOT$bio.bcr_aliquot_uuid)
     ALIQUOT$bio.bcr_sample_uuid = toupper(ALIQUOT$bio.bcr_sample_uuid)
     

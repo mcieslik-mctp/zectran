@@ -72,6 +72,21 @@ shinyUI(pageWithSidebar(
                                           actionButton("update_plot_rpmm_sa", "update RPMM"))
                              )
                          ),
+
+        conditionalPanel(condition="input.tabs == 'Transcript Expression'",
+                         h5("Select Table"),
+                         wellPanel(
+                             uiOutput("analysis_select_te"),
+                             uiOutput("value_select_te"),
+                             uiOutput("study_select_te"),
+                             uiOutput("cohort_select_te")
+                             ),
+                         h5("Select Data"),
+                         wellPanel(
+                             uiOutput("sample_select_te"),
+                             textInput("id_query_te", "id")
+                             )
+                         ),
         
         conditionalPanel(condition="input.tabs == 'Dataset Summary'",
                          h5("Select cohorts"),
@@ -128,7 +143,13 @@ shinyUI(pageWithSidebar(
                                       )
 
                      ),
-                     
+
+            tabPanel("Transcript Expression",
+                     h5("KLK3 - uc010eof.1"),
+                     textOutput("data_te")
+                     ),
+ 
+            
             tabPanel("Dataset Summary",
                      h4("Cohort Summary"),
                      verbatimTextOutput("cohort_description"),
@@ -145,3 +166,4 @@ shinyUI(pageWithSidebar(
     )
 ))
 print("ui")
+source("thetbl.r")

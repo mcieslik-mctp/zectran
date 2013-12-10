@@ -359,6 +359,57 @@ shinyServer(function(input, output) {
             print(plt)
         })})    
     output$plot_pca_sa = renderPlot(plot_pca_sa())
+
+
+    ## Transcript Expression
+    output$analysis_select_te = renderUI({
+        selectInput("analysis_select_te", label="select analysis", choices=getAnalyses())
+    })
+    output$value_select_te = renderUI({
+        if (is.null(input$analysis_select_te)) {
+            return(NULL)
+        }
+        selectInput("value_select_te", label="select value", choices=getValues(input$analysis_select_te))
+    })
+    output$study_select_te = renderUI({
+        if (is.null(input$value_select_te)) {
+            return(NULL)
+        }
+        selectInput("study_select_te", label="select study", choices=getStudies(input$analysis_select_te,
+                                                                 input$value_select_te))
+    })
+    output$cohort_select_te = renderUI({
+        if (is.null(input$study_select_te)) {
+            return(NULL)
+        }
+        selectInput("cohort_select_te", label="select cohort", choices=getCohorts(input$analysis_select_te,
+                                                                 input$value_select_te, input$study_select_te))
+    })
+
+    output$sample_select_te = renderUI({
+        if (is.null(input$cohort_select_te)) {
+            return(NULL)
+        }
+        selectInput("sample_select_te", label="select sample", choices=
+                    getSamples(input$analysis_select_te, input$value_select_te,
+                               input$study_select_te, input$cohort_select_te)
+                    )
+    })
+
+    output$data_te = renderText({
+        data = getData(input$analysis_select_te,
+                        input$value_select_te,
+                        input$study_select_te,
+                        input$cohort_select_te,
+                        input$sample_select_te,
+                        input$id_query_te)
+        data * 10^6
+    })
+
+    
+
+
+    
     
 
     ## Dataset Summary
