@@ -361,72 +361,191 @@ shinyServer(function(input, output) {
     output$plot_pca_sa = renderPlot(plot_pca_sa())
 
 
-    ## Transcript Expression
-    output$analysis_select_te = renderUI({
-        selectInput("analysis_select_te", label="select analysis", choices=getAnalyses())
-    })
-    output$value_select_te = renderUI({
-        if (is.null(input$analysis_select_te)) {
-            return(NULL)
-        }
-        selectInput("value_select_te", label="select value", choices=getValues(input$analysis_select_te))
-    })
-    output$study_select_te = renderUI({
-        if (is.null(input$value_select_te)) {
-            return(NULL)
-        }
-        selectInput("study_select_te", label="select study", choices=getStudies(input$analysis_select_te,
-                                                                 input$value_select_te))
-    })
-    output$cohort_select_te = renderUI({
-        if (is.null(input$study_select_te)) {
-            return(NULL)
-        }
-        selectInput("cohort_select_te", label="select cohort", choices=getCohorts(input$analysis_select_te,
-                                                                 input$value_select_te, input$study_select_te))
-    })
-
-    output$sample_select_te = renderUI({
-        if (is.null(input$cohort_select_te)) {
-            return(NULL)
-        }
-        selectInput("sample_select_te", label="select sample", choices=
-                    getSamples(input$analysis_select_te, input$value_select_te,
-                               input$study_select_te, input$cohort_select_te)
-                    )
-    })
-
-    output$data_te = renderText({
-        data = getData(input$analysis_select_te,
-                        input$value_select_te,
-                        input$study_select_te,
-                        input$cohort_select_te,
-                        input$sample_select_te,
-                        input$id_query_te)
-        data * 10^6
-    })
-
-    
-
-
-    
-    
-
     ## Dataset Summary
-    output$cohort_select_ds = renderUI({
-        selectInput("cohort_select_ds", label="", choices=get_cohorts(), selected="PRAD",
+    output$analysis_select_ds = renderUI({
+        selectInput("analysis_select_ds", label="select analysis", choices=getAnalyses())
+    })
+
+    output$value_select_ds = renderUI({
+        if (is.null(input$analysis_select_ds)) {
+            return(NULL)
+        }
+        selectInput("value_select_ds", label="select value",
+                    choices=getValues(input$analysis_select_ds))
+    })
+    
+    output$study_select_ds = renderUI({
+        if (is.null(input$value_select_ds)) {
+            return(NULL)
+        }
+        selectInput("study_select_ds", label="select study",
+                    choices=getStudies(input$analysis_select_ds, input$value_select_ds))
+    })
+
+    ##Cohort Builder
+    all_cohorts = reactive({
+        if (is.null(input$study_select_ds)) {
+            return(NULL)
+        }
+        getCohorts(input$analysis_select_ds, input$value_select_ds, input$study_select_ds)
+    })
+
+    ## A
+    output$cohort_a_select_cb = renderUI({
+        if (is.null(all_cohorts())) {
+            return(NULL)
+        }
+        selectInput("cohort_a_select_cb", label="select cohort(s)", choices=all_cohorts(),
                     multiple=TRUE)
     })
+
+    a_cohort_aliquots = reactive({
+        getAllAliquots(input$analysis_select_ds, input$value_select_ds, input$study_select_ds,
+                       input$cohort_a_select_cb)
+    })
+    a_cohort_samples = reactive({
+        convertAllAliquots(a_cohort_aliquots(), "sample")
+    })
+    
+    output$samplefilter_a_select_cb = renderUI({
+        if (is.null(input$cohort_a_select_cb)) {
+            return(NULL)
+        }
+        vals = getAllSamplesTable(a_cohort_samples(), input$samplecolumn_a_query_cb)
+        lab = paste("select", input$samplecolumn_a_query_cb)
+        selectInput("samplefilter_a_select_cb", label=lab,
+                    choices=vals[[input$samplecolumn_a_query_cb]], multiple=TRUE)
+    })
+
+    ## A
+    output$cohort_b_select_cb = renderUI({
+        if (is.null(all_cohorts())) {
+            return(NULL)
+        }
+        selectInput("cohort_b_select_cb", label="select cohort(s)", choices=all_cohorts(),
+                    multiple=TRUE)
+    })
+
+    b_cohort_aliquots = reactive({
+        getAllAliquots(input$analysis_select_ds, input$value_select_ds, input$study_select_ds,
+                       input$cohort_b_select_cb)
+    })
+    b_cohort_samples = reactive({
+        convertAllAliquots(b_cohort_aliquots(), "sample")
+    })
+    
+    output$samplefilter_b_select_cb = renderUI({
+        if (is.null(input$cohort_b_select_cb)) {
+            return(NULL)
+        }
+        vals = getAllSamplesTable(b_cohort_samples(), input$samplecolumn_b_query_cb)
+        lab = paste("select", input$samplecolumn_b_query_cb)
+        selectInput("samplefilter_b_select_cb", label=lab,
+                    choices=vals[[input$samplecolumn_b_query_cb]], multiple=TRUE)
+    })
+        
+    ## Patient Summary
+    ab_filtered_cohort_aliquots = reactive({
+        if (any(sapply(list(
+            input$cohort_a_select_cb, input$cohort_b_select_cb,
+            input$samplecolumn_a_query_cb, input$samplecolumn_b_query_cb,
+            input$samplefilter_a_select_cb, input$samplefilter_b_select_cb,
+            input$analysis_select_ds, input$value_select_ds, input$study_select_ds
+            ), is.null))) {
+            return(NULL)
+        }
+        ab_cohorts = list(a=input$cohort_a_select_cb, b=input$cohort_b_select_cb)
+        samplecolumns = list(a=input$samplecolumn_a_query_cb, b=input$samplecolumn_b_query_cb)
+        samplefilters = list(a=input$samplefilter_a_select_cb, b=input$samplefilter_b_select_cb)
+        res = list()
+        for (ab in c("a", "b")) {
+            cohorts = ab_cohorts[[ab]]
+            res[[ab]] = list()
+            for (cohort in cohorts) {
+                aliquots = getAliquots(input$analysis_select_ds, input$value_select_ds,
+                    input$study_select_ds, cohort)
+                tmp = filterAliquotsBySample(aliquots, cohort, samplecolumns[[ab]],
+                    samplefilters[[ab]])
+                select_aliquots = tmp
+                res[[ab]][[cohort]] = select_aliquots
+            }
+        }
+        return(res)
+    })
+
+    ab_filtered_cohort_patients = reactive({
+        if (is.null(ab_filtered_cohort_aliquots)) {
+            return(NULL)
+        }
+        inp = ab_filtered_cohort_aliquots()
+        res = list()
+        for (ab in names(inp)) {
+            cohort_aliquots = inp[[ab]]
+            cohort_patients = convertAllAliquots(cohort_aliquots, "patient")
+            res[[ab]] = cohort_patients
+        }
+        return(res)
+    })
+    
+    output$patient_a_select_ps = renderUI({
+        if (is.null(ab_filtered_cohort_patients)) {
+            return(NULL)
+        }
+        patients = as.vector(c(ab_filtered_cohort_patients()[["a"]], recursive=TRUE))
+        selectInput("patient_a_select_ps", label="Sub-cohort A patients", choices=patients,
+                    multiple=TRUE)
+    })
+
+    output$patient_b_select_ps = renderUI({
+        if (is.null(ab_filtered_cohort_patients)) {
+            return(NULL)
+        }
+        patients = as.vector(c(ab_filtered_cohort_patients()[["b"]], recursive=TRUE))
+        selectInput("patient_b_select_ps", label="Sub-cohort B patients", choices=patients,
+                    multiple=TRUE)
+    })
+
+    patient_clinical_ps = reactive({
+        if (is.null(ab_filtered_cohort_patients())) {
+            return(NULL)
+        }
+        tbls = list()
+        for (ab in c("a", "b")) {
+            print(ab)
+            filtered_cohort_patients = ab_filtered_cohort_patients()[[ab]]
+            selected_patients = switch(ab,"a"={input$patient_a_select_ps},
+                                          "b"={input$patient_b_select_ps})
+            for (cohort in names(filtered_cohort_patients)) {
+                print(cohort)
+                filtered_patients = filtered_cohort_patients[[cohort]]
+                selected_by_cohort = filtered_patients[filtered_patients %in% selected_patients]
+                if (length(selected_by_cohort) != 0) {
+                    tbls[[paste(ab, cohort, sep="_")]] = getClinPatientJoin(selected_by_cohort,
+                            cohort)
+                }
+            }
+        }
+        unique(rbind.fill(tbls))
+    })
+    
+    output$patient_clinical_ps = renderDataTable({
+        patient_clinical_ps()
+    })
+
+    
     # description
     cohort_description = reactive({.cohort_description(input$cohort_select_ds)})
-    output$cohort_description = renderText(cohort_description())
+    
     # summary
     cohort_summary = reactive({.cohort_summary(input$cohort_select_ds)})
     output$cohort_summary = renderTable(cohort_summary())
     # samples
     cohort_samples = reactive({.cohort_samples(input$cohort_select_ds)})
-    output$cohort_samples = renderDataTable(cohort_samples())
-
-    
+    #output$cohort_samples = renderDataTable(cohort_samples())
 })
+        
 print("server")
+
+source("thetbl.r")
+source("tcga.r")
+source("global_2.r")

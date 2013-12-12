@@ -2,12 +2,52 @@ library(shiny)
 
 shinyUI(pageWithSidebar(
 
-    headerPanel("Zectran: the methyl explorer"),
+    headerPanel("Zectran the explorer"),
 
     sidebarPanel(
 
+        conditionalPanel(condition="input.tabs == 'Select Dataset'",
+                         h5("Select Dataset(s)"),
+                         wellPanel(
+                             uiOutput("analysis_select_ds"),
+                             uiOutput("value_select_ds"),
+                             uiOutput("study_select_ds")
+                             )
+                         ),
+        
+        conditionalPanel(condition="input.tabs == 'Cohort Builder'",
+                         h5("(sub)cohort A"),
+                         wellPanel(
+                             uiOutput("cohort_a_select_cb"),
+                             textInput("samplecolumn_a_query_cb", "sample filter column",
+                                       value="sample_type_id"),
+                             uiOutput("samplefilter_a_select_cb"),
+                             textInput("patientcolumn_a_query_cb", "patient filter column",
+                                       value="gleason_score"),
+                             uiOutput("patientfilter_a_select_cb")
+                             ),
+                         h5("(sub)cohort B"),
+                         wellPanel(
+                             uiOutput("cohort_b_select_cb"),
+                             textInput("samplecolumn_b_query_cb", "Sample Column",
+                                       value="sample_type_id"),
+                             uiOutput("samplefilter_b_select_cb"),
+                             textInput("patientcolumn_b_query_cb", "patient filter column",
+                                       value="gleason_score"),
+                             uiOutput("patientfilter_b_select_cb")
+                             )
+                         ),
+        
+        conditionalPanel(condition="input.tabs == 'Patient Summary'",
+                         h5("Select Patient"),
+                         wellPanel(
+                             uiOutput("patient_a_select_ps"),
+                             uiOutput("patient_b_select_ps")
+                             )
+                         ),
+                
         conditionalPanel(condition="input.tabs == 'Gene Query'",
-                         h5("Select gene"),
+                         h5("Select Gene"),
                          wellPanel(
                              textInput("query_hgnc_gq", "HUGO (HGNC) gene name"),
                              uiOutput("select_ensg_gq"),
@@ -71,34 +111,26 @@ shinyUI(pageWithSidebar(
                              conditionalPanel(condition="input.analysis_select_sa == 'RPMM clusters'",
                                           actionButton("update_plot_rpmm_sa", "update RPMM"))
                              )
-                         ),
-
-        conditionalPanel(condition="input.tabs == 'Transcript Expression'",
-                         h5("Select Table"),
-                         wellPanel(
-                             uiOutput("analysis_select_te"),
-                             uiOutput("value_select_te"),
-                             uiOutput("study_select_te"),
-                             uiOutput("cohort_select_te")
-                             ),
-                         h5("Select Data"),
-                         wellPanel(
-                             uiOutput("sample_select_te"),
-                             textInput("id_query_te", "id")
-                             )
-                         ),
-        
-        conditionalPanel(condition="input.tabs == 'Dataset Summary'",
-                         h5("Select cohorts"),
-                         wellPanel(
-                             uiOutput("cohort_select_ds")
-                             )
                          )
+        
     ),
     
     mainPanel(
         
         tabsetPanel(
+
+            tabPanel("Select Dataset",
+                     h4("Dataset Summary")
+                     ),
+
+            tabPanel("Cohort Builder",
+                     h4("Cohort Summary")
+                     ),
+
+            tabPanel("Patient Summary",
+                     h4("Patient Summary"),
+                     dataTableOutput("patient_clinical_ps")
+                     ),            
             
             tabPanel("Gene Query",
                      h4("Ensembl Gene Model"),                     
@@ -128,8 +160,6 @@ shinyUI(pageWithSidebar(
                                       plotOutput("cg_track_gq", width=800, height=400))
                      ),
 
-            
-
             tabPanel("Sample Analysis",
                      conditionalPanel(condition="input.analysis_select_sa == ''",
                                       h5("select analysis, samples")),
@@ -143,27 +173,8 @@ shinyUI(pageWithSidebar(
                                       )
 
                      ),
-
-            tabPanel("Transcript Expression",
-                     h5("KLK3 - uc010eof.1"),
-                     textOutput("data_te")
-                     ),
- 
-            
-            tabPanel("Dataset Summary",
-                     h4("Cohort Summary"),
-                     verbatimTextOutput("cohort_description"),
-                     tableOutput("cohort_summary"),
-                     h4("Cohort Samples"),
-                     dataTableOutput("cohort_samples"),
-                     h4("Query Data"),
-                     tableOutput("debug_data"),
-                     h4("ENST Debug probes"),
-                     textOutput("enst_debug_probes")
-                     ),
             
             id="tabs")
     )
 ))
 print("ui")
-source("thetbl.r")

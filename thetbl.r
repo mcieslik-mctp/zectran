@@ -1,17 +1,24 @@
 library(h5r)
 library(stringr)
 
-THETBL = H5File("tables/thetbl.h5", "r")
+THETBL = H5File("tables/THETBL.h5", "r")
+CONTENTS = readRDS("tables/THETBL.rds", "r")
 
-.getChildren = function(root) {
-    leafs = listH5Contents(root)
-    lnames = names(leafs)[2:length(leafs)]
-    ldepth = sapply(str_split(lnames, "/"), length)
-    values = lnames[ldepth == 1]
+.getChildren = function(root, depth=1) {
+    root_name = ifelse(root@name==".", "/", paste("/", root@name, "/", sep=""))
+    leafs = paste("/", names(CONTENTS)[2:length(CONTENTS)], sep="")
+    matches = grepl(paste("^", root_name, sep=""), leafs)
+    lnames = leafs[matches]
+    rdepth = length(str_split(root_name, "/")[[1]])
+    ldepth = sapply(str_split(lnames, "/"), length) - (rdepth - 1)
+    values = lnames[ldepth %in% depth]
+    values = str_replace(values, root_name, "")
+    return(values)
 }
 
 getAnalyses = function(tbl=THETBL) {
-    .getChildren(tbl)
+    root = getH5Group(tbl, ".")
+    .getChildren(root)
 }
 
 getValues = function(analysis, tbl=THETBL) {
@@ -29,24 +36,23 @@ getCohorts = function(analysis, value, study, tbl=THETBL) {
     .getChildren(root)
 }
 
-getTable = function(analysis, value, study, cohort, tbl=THETBL) {
-    ds = getH5Dataset(tbl, paste(analysis, value, study, cohort, sep="/"), inMemory=FALSE)    
+getVal = function(analysis, value, study, cohort, tbl=THETBL) {
+    getH5Dataset(tbl, paste(analysis, value, study, cohort, "val", sep="/"), inMemory=FALSE)    
 }
 
-getSamples = function(analysis, value, study, cohort, tbl=THETBL) {
-    ds = getH5Dataset(tbl, paste(analysis, value, study, cohort, sep="/"), inMemory=FALSE)
-    samples = getH5Attribute(ds, attrName="ids")[]
+getRid = function(analysis, value, study, cohort, tbl=THETBL) {
+    getH5Dataset(tbl, paste(analysis, value, study, cohort, "rid", sep="/"), inMemory=FALSE)[]
 }
 
-getIndex = function(analysis, value, tbl=THETBL) {
-    index = getH5Dataset(tbl, paste(analysis, value, "idx", sep="/"))[]
+getCid = function(analysis, value, study, cohort, tbl=THETBL) {
+    getH5Dataset(tbl, paste(analysis, value, study, cohort, "cid", sep="/"), inMemory=FALSE)[]
 }
 
-getData = function(analysis, value, study, cohort, samples, ids, tbl=THETBL) {
-    table = getTable(analysis, value, study, cohort, tbl)
-    all_samples = getSamples(analysis, value, study, cohort, tbl)
-    index = getIndex(analysis, value, tbl)
-    rows = which(index == ids)
-    cols = which(all_samples == samples)
-    table[rows, cols]
+getData = function(analysis, value, study, cohort, rows, cols, tbl=THETBL) {
+    val = getVal(analysis, value, study, cohort, tbl)
+    rid = getRid(analysis, value, study, cohort, tbl)
+    cid = getCid(analysis, value, study, cohort, tbl)
+    ridx = which(rid %in% rows)
+    cidx = which(cid %in% cols)
+    val[ridx, cidx]
 }
