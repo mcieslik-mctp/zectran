@@ -6,7 +6,7 @@ shinyUI(pageWithSidebar(
 
     sidebarPanel(
 
-        conditionalPanel(condition="input.tabs == 'Select Dataset'",
+        conditionalPanel(condition="input.tabs == 'Dataset Summary'",
                          h5("Select Dataset(s)"),
                          wellPanel(
                              uiOutput("analysis_select_ds"),
@@ -44,6 +44,10 @@ shinyUI(pageWithSidebar(
                              uiOutput("patient_a_select_ps"),
                              uiOutput("patient_b_select_ps")
                              )
+                         ),
+
+        conditionalPanel(condition="input.tabs == 'Data Analysis'",
+                         h5("Select Analysis")
                          ),
                 
         conditionalPanel(condition="input.tabs == 'Gene Query'",
@@ -119,18 +123,25 @@ shinyUI(pageWithSidebar(
         
         tabsetPanel(
 
-            tabPanel("Select Dataset",
-                     h4("Dataset Summary")
+            tabPanel("Dataset Summary",
+                     h4("Dataset Summary"),
+                     tableOutput("dataset_table_ds")
                      ),
 
             tabPanel("Cohort Builder",
-                     h4("Cohort Summary")
+                     h4("Cohort Summary"),
+                     tableOutput("cohort_table_cb")
                      ),
 
             tabPanel("Patient Summary",
                      h4("Patient Summary"),
                      dataTableOutput("patient_clinical_ps")
                      ),            
+
+            tabPanel("Data Analysis",
+                     h4("Cohort tally:"),
+                     tableOutput("cohorttally_table_da")
+                     ),
             
             tabPanel("Gene Query",
                      h4("Ensembl Gene Model"),                     

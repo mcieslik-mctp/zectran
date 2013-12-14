@@ -382,13 +382,54 @@ shinyServer(function(input, output) {
                     choices=getStudies(input$analysis_select_ds, input$value_select_ds))
     })
 
-    ##Cohort Builder
     all_cohorts = reactive({
         if (is.null(input$study_select_ds)) {
             return(NULL)
         }
         getCohorts(input$analysis_select_ds, input$value_select_ds, input$study_select_ds)
     })
+
+    cohort_aliquots = reactive({
+        if (is.null(all_cohorts())) {
+            return(NULL)
+        }
+        cohort_aliquots = getAllAliquots(input$analysis_select_ds, input$value_select_ds, input$study_select_ds,
+                       all_cohorts())
+    })
+
+    cohort_samples = reactive({
+        if (is.null(cohort_aliquots())) {
+            return(NULL)
+        }
+        convertAllAliquots(cohort_aliquots(), "sample")
+    })
+    
+    cohort_patients = reactive({
+        if (is.null(cohort_aliquots())) {
+            return(NULL)
+        }
+        convertAllAliquots(cohort_aliquots(), "patient")
+    })
+
+    output$dataset_table_ds = renderTable({
+        if (is.null(cohort_aliquots())) {
+            return(NULL)
+        }
+        ldply(names(cohort_aliquots()), function(cohort) {
+            aliquots = cohort_aliquots()[[cohort]]
+            n_aliquots = length(aliquots)
+            n_tumor = length(unique(
+                convertAliquots(aliquots, "patient")))
+            n_cohort_clinical = tryCatch({
+                nrow(getAllPatients(cohort))
+            }, error = function(e) {0L})
+            n_normal = n_aliquots - n_tumor
+            data.frame(cohort=cohort, aliquots=length(aliquots), tumor=n_tumor, normal=n_normal,
+                       "in cohort with clinical"=n_cohort_clinical)
+        })
+    })
+    
+    #### Cohort Builder
 
     ## A
     output$cohort_a_select_cb = renderUI({
@@ -400,24 +441,49 @@ shinyServer(function(input, output) {
     })
 
     a_cohort_aliquots = reactive({
-        getAllAliquots(input$analysis_select_ds, input$value_select_ds, input$study_select_ds,
-                       input$cohort_a_select_cb)
-    })
-    a_cohort_samples = reactive({
-        convertAllAliquots(a_cohort_aliquots(), "sample")
-    })
-    
-    output$samplefilter_a_select_cb = renderUI({
-        if (is.null(input$cohort_a_select_cb)) {
+        if (is.null(cohort_aliquots())) {
             return(NULL)
         }
-        vals = getAllSamplesTable(a_cohort_samples(), input$samplecolumn_a_query_cb)
-        lab = paste("select", input$samplecolumn_a_query_cb)
-        selectInput("samplefilter_a_select_cb", label=lab,
-                    choices=vals[[input$samplecolumn_a_query_cb]], multiple=TRUE)
+        cohort_aliquots()[input$cohort_a_select_cb]
     })
 
-    ## A
+    a_cohort_samples = reactive({
+        if (is.null(cohort_samples())) {
+            return(NULL)
+        }
+        cohort_samples()[input$cohort_a_select_cb]
+    })
+    
+    a_cohort_patients = reactive({
+        if (is.null(cohort_patients())) {
+            return(NULL)
+        }
+        cohort_patients()[input$cohort_a_select_cb]
+    })
+
+   
+    output$samplefilter_a_select_cb = renderUI({
+        if (is.null(input$cohort_a_select_cb) || is.na(input$cohort_a_select_cb)) {
+            return(NULL)
+        }
+        vals = sort(
+            getAllSamplesTable(a_cohort_samples(), input$samplecolumn_a_query_cb)[[input$samplecolumn_a_query_cb]])
+        lab = paste("select", input$samplecolumn_a_query_cb)
+        selectInput("samplefilter_a_select_cb", label=lab,
+                    choices=vals, multiple=TRUE)
+    })
+    output$patientfilter_a_select_cb = renderUI({
+        if (is.null(input$cohort_a_select_cb) || is.na(input$cohort_a_select_cb)) {
+            return(NULL)
+        }
+        vals = sort(getAllPatientsTable(a_cohort_patients(),
+            input$patientcolumn_a_query_cb)[[input$patientcolumn_a_query_cb]])
+        lab = paste("select", input$patientcolumn_a_query_cb)
+        selectInput("patientfilter_a_select_cb", label=lab, choices=vals,
+                    multiple=TRUE)
+    })
+    
+    ## B
     output$cohort_b_select_cb = renderUI({
         if (is.null(all_cohorts())) {
             return(NULL)
@@ -427,23 +493,75 @@ shinyServer(function(input, output) {
     })
 
     b_cohort_aliquots = reactive({
-        getAllAliquots(input$analysis_select_ds, input$value_select_ds, input$study_select_ds,
-                       input$cohort_b_select_cb)
-    })
-    b_cohort_samples = reactive({
-        convertAllAliquots(b_cohort_aliquots(), "sample")
-    })
-    
-    output$samplefilter_b_select_cb = renderUI({
-        if (is.null(input$cohort_b_select_cb)) {
+        if (is.null(cohort_aliquots())) {
             return(NULL)
         }
-        vals = getAllSamplesTable(b_cohort_samples(), input$samplecolumn_b_query_cb)
+        cohort_aliquots()[input$cohort_b_select_cb]
+    })
+    b_cohort_samples = reactive({
+        if (is.null(cohort_samples())) {
+            return(NULL)
+        }
+        cohort_samples()[input$cohort_b_select_cb]
+    })
+    b_cohort_patients = reactive({
+        if (is.null(cohort_patients())) {
+            return(NULL)
+        }
+        cohort_patients()[input$cohort_b_select_cb]
+    })
+
+    output$samplefilter_b_select_cb = renderUI({
+        if (is.null(input$cohort_b_select_cb) || is.na(input$cohort_b_select_cb)) {
+            return(NULL)
+        }
+        vals = sort(
+            getAllSamplesTable(b_cohort_samples(), input$samplecolumn_b_query_cb)[[input$samplecolumn_b_query_cb]]
+            )
         lab = paste("select", input$samplecolumn_b_query_cb)
         selectInput("samplefilter_b_select_cb", label=lab,
-                    choices=vals[[input$samplecolumn_b_query_cb]], multiple=TRUE)
+                    choices=vals, multiple=TRUE)
     })
+    output$patientfilter_b_select_cb = renderUI({
+        if (is.null(input$cohort_b_select_cb) || is.na(input$cohort_b_select_cb)) {
+            return(NULL)
+        }
+        vals = sort(getAllPatientsTable(b_cohort_patients(),
+            input$patientcolumn_b_query_cb)[[input$patientcolumn_b_query_cb]])
+        lab = paste("select", input$patientcolumn_b_query_cb)
+        selectInput("patientfilter_b_select_cb", label=lab, choices=vals,
+                    multiple=TRUE)
+    })
+
+    a_cohort_samplefiltered_aliquots = reactive({
+        cohort_samplefiltered_aliquots = list()
+        for (cohort in names(a_cohort_aliquots())) {
+            aliquots = cohort_aliquots[[cohort]]
+            samplefiltered = filterAliquotsBySample(aliquots, cohort,
+                input$samplecolumn_a_query_cb,
+                input$samplefilter_a_select_cb,
+                samplecolumn, samplefilters)
+    })
+
+
+    
+    ## OUT
+    output$cohort_table_cb = renderTable({
+        if (length(a_cohort_aliquots()) == 0 || length(b_cohort_aliquots()) == 0) {
+            return(NULL)
+        }
+        # aliquots in selected cohorts
+        ## fix this 
+        a_aic = sum(sapply(a_cohort_aliquots(), length))
+        b_aic = sum(sapply(b_cohort_aliquots(), length)) 
         
+        df = data.frame(
+            c(a_aic, b_aic),
+            row.names=c("cohort A", "cohort B"))
+        colnames(df) = c("aliquots in cohorts")
+        return(df)
+    })
+    
     ## Patient Summary
     ab_filtered_cohort_aliquots = reactive({
         if (any(sapply(list(
@@ -454,27 +572,47 @@ shinyServer(function(input, output) {
             ), is.null))) {
             return(NULL)
         }
-        ab_cohorts = list(a=input$cohort_a_select_cb, b=input$cohort_b_select_cb)
-        samplecolumns = list(a=input$samplecolumn_a_query_cb, b=input$samplecolumn_b_query_cb)
-        samplefilters = list(a=input$samplefilter_a_select_cb, b=input$samplefilter_b_select_cb)
-        res = list()
-        for (ab in c("a", "b")) {
-            cohorts = ab_cohorts[[ab]]
+        ab_filters = list(
+            a=list(
+                cohort_aliquots=a_cohort_aliquots(),
+                samplecolumn=input$samplecolumn_a_query_cb,
+                samplefilters=input$samplefilter_a_select_cb,
+                patientcolumn=input$patientcolumn_a_query_cb,
+                patientfilters=input$patientfilter_a_select_cb),
+            b=list(
+                cohort_aliquots=b_cohort_aliquots(),
+                samplecolumn=input$samplecolumn_b_query_cb,
+                samplefilters=input$samplefilter_b_select_cb,
+                patientcolumn=input$patientcolumn_b_query_cb,
+                patientfilters=input$patientfilter_b_select_cb)
+            )
+        res=list()
+        for (ab in names(ab_filters)) {
             res[[ab]] = list()
-            for (cohort in cohorts) {
-                aliquots = getAliquots(input$analysis_select_ds, input$value_select_ds,
-                    input$study_select_ds, cohort)
-                tmp = filterAliquotsBySample(aliquots, cohort, samplecolumns[[ab]],
-                    samplefilters[[ab]])
-                select_aliquots = tmp
-                res[[ab]][[cohort]] = select_aliquots
+            
+            f = ab_filters[[ab]]
+            cohort_aliquots = f[["cohort_aliquots"]]
+            samplecolumn = f[["samplecolumn"]]
+            samplefilters = f[["samplefilters"]]
+            patientcolumn = f[["patientcolumn"]]
+            patientfilters = f[["patientfilters"]]
+            print(ab)
+            ## print(f)
+            for (cohort in names(cohort_aliquots)) {
+                ## here aliquots are being filtered by patient and sample selects
+                aliquots = cohort_aliquots[[cohort]]
+                aliquots = filterAliquotsBySample(aliquots, cohort, samplecolumn,
+                    samplefilters)
+                aliquots = filterAliquotsByPatient(aliquots, cohort, patientcolumn,
+                    patientfilters)
+                res[[ab]][[cohort]] = aliquots
             }
         }
-        return(res)
+        return(res)        
     })
 
     ab_filtered_cohort_patients = reactive({
-        if (is.null(ab_filtered_cohort_aliquots)) {
+        if (is.null(ab_filtered_cohort_aliquots())) {
             return(NULL)
         }
         inp = ab_filtered_cohort_aliquots()
@@ -488,7 +626,7 @@ shinyServer(function(input, output) {
     })
     
     output$patient_a_select_ps = renderUI({
-        if (is.null(ab_filtered_cohort_patients)) {
+        if (is.null(ab_filtered_cohort_patients())) {
             return(NULL)
         }
         patients = as.vector(c(ab_filtered_cohort_patients()[["a"]], recursive=TRUE))
@@ -497,7 +635,7 @@ shinyServer(function(input, output) {
     })
 
     output$patient_b_select_ps = renderUI({
-        if (is.null(ab_filtered_cohort_patients)) {
+        if (is.null(ab_filtered_cohort_patients())) {
             return(NULL)
         }
         patients = as.vector(c(ab_filtered_cohort_patients()[["b"]], recursive=TRUE))
@@ -520,7 +658,7 @@ shinyServer(function(input, output) {
                 filtered_patients = filtered_cohort_patients[[cohort]]
                 selected_by_cohort = filtered_patients[filtered_patients %in% selected_patients]
                 if (length(selected_by_cohort) != 0) {
-                    tbls[[paste(ab, cohort, sep="_")]] = getClinPatientJoin(selected_by_cohort,
+                    tbls[[paste(ab, cohort, sep="_")]] = getPatientsTableJoin(selected_by_cohort,
                             cohort)
                 }
             }
@@ -532,16 +670,21 @@ shinyServer(function(input, output) {
         patient_clinical_ps()
     })
 
-    
-    # description
-    cohort_description = reactive({.cohort_description(input$cohort_select_ds)})
-    
-    # summary
-    cohort_summary = reactive({.cohort_summary(input$cohort_select_ds)})
-    output$cohort_summary = renderTable(cohort_summary())
-    # samples
-    cohort_samples = reactive({.cohort_samples(input$cohort_select_ds)})
-    #output$cohort_samples = renderDataTable(cohort_samples())
+    ##
+    output$cohorttally_table_da = renderTable({
+        if (is.null(ab_filtered_cohort_aliquots())) {
+            return(NULL)
+        }
+        rows = list()
+        for (ab in c("a", "b")) {
+            cohort_aliquots = ab_filtered_cohort_aliquots()[[ab]]
+            for (cohort in names(cohort_aliquots)) {
+                rows[[paste("cohort", toupper(ab), cohort)]] = list(
+                        cases=as.integer(length(cohort_aliquots[[cohort]])))
+            }
+        }
+        splat(rbind)(rows)
+    })    
 })
         
 print("server")

@@ -4,8 +4,6 @@ SYNC = Sys.getenv("SYNC")
 source(file.path(SYNC, "libs", "lib.r"))
 source("hdf5.r")
 source("convert.r")
-source("thetbl.r")
-source("global_2.r")
 
 library(h5r)
 library(stringr)

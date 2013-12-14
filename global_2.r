@@ -1,3 +1,4 @@
+options(stringsAsFactors=FALSE)
 SYNC = Sys.getenv("SYNC")
 
 suppressMessages(library("GenomicFeatures"))
