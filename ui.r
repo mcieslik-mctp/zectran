@@ -24,7 +24,8 @@ shinyUI(pageWithSidebar(
                              uiOutput("samplefilter_a_select_cb"),
                              textInput("patientcolumn_a_query_cb", "patient filter column",
                                        value="gleason_score"),
-                             uiOutput("patientfilter_a_select_cb")
+                             uiOutput("patientfilter_a_select_cb"),
+                             uiOutput("patientselect_a_select_cb")
                              ),
                          h5("(sub)cohort B"),
                          wellPanel(
@@ -34,18 +35,12 @@ shinyUI(pageWithSidebar(
                              uiOutput("samplefilter_b_select_cb"),
                              textInput("patientcolumn_b_query_cb", "patient filter column",
                                        value="gleason_score"),
-                             uiOutput("patientfilter_b_select_cb")
-                             )
+                             uiOutput("patientfilter_b_select_cb"),
+                             uiOutput("patientselect_b_select_cb")
+                             ),
+                         actionButton("cohorts_ab_action_cb", "update cohorts")
                          ),
         
-        conditionalPanel(condition="input.tabs == 'Patient Summary'",
-                         h5("Select Patient"),
-                         wellPanel(
-                             uiOutput("patient_a_select_ps"),
-                             uiOutput("patient_b_select_ps")
-                             )
-                         ),
-
         conditionalPanel(condition="input.tabs == 'Data Analysis'",
                          h5("Select Analysis")
                          ),
@@ -130,19 +125,11 @@ shinyUI(pageWithSidebar(
 
             tabPanel("Cohort Builder",
                      h4("Cohort Summary"),
-                     tableOutput("cohort_table_cb")
-                     ),
-
-            tabPanel("Patient Summary",
+                     tableOutput("cohort_table_cb"),
                      h4("Patient Summary"),
-                     dataTableOutput("patient_clinical_ps")
-                     ),            
-
-            tabPanel("Data Analysis",
-                     h4("Cohort tally:"),
-                     tableOutput("cohorttally_table_da")
+                     dataTableOutput("patient_clinical_cb")
                      ),
-            
+
             tabPanel("Gene Query",
                      h4("Ensembl Gene Model"),                     
                      plotOutput("ensts_tracks_gq", width=800),

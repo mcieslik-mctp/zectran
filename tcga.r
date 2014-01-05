@@ -2,23 +2,34 @@ library(stringr)
 library(data.table)
 library(RSQLite)
 
-TCGAMAP = readRDS("tables/TCGAMAP.rds")
-setkey(TCGAMAP, "bio.bcr_aliquot_uuid")
+TCGAMAP_A = readRDS("tables/TCGAMAP.rds")
+setkey(TCGAMAP_A, "bio.bcr_aliquot_uuid")
+TCGAMAP_P =  copy(TCGAMAP_A)
+setkey(TCGAMAP_P, "shared.bcr_patient_uuid")
 
 drv = dbDriver("SQLite")
 TCGA = dbConnect(drv, "tables/clinical.sqlite")
 
-
-convertAliquots = function(aliquots, to) {
-    col = switch(to, "sample"={"bio.bcr_sample_uuid"},
-                     "patient"={"shared.bcr_patient_uuid"})
-    as.character(TCGAMAP[aliquots, get(col)]$V1)
+convertUUIDs = function(uuids, from, to) {
+    tryCatch({
+        MAP = switch(from, "aliquot"={TCGAMAP_A},
+            "patient"={TCGAMAP_P})
+        col = switch(to, "sample"={"bio.bcr_sample_uuid"},
+            "aliquot"={"bio.bcr_aliquot_uuid"},
+            "patient"={"shared.bcr_patient_uuid"})
+        tbl = MAP[uuids, get(col)]
+        as.character(tbl$V1)
+    }, error=function(e) {
+        #print(e)
+        NULL
+    })
 }
-convertAllAliquots = function(cohort_aliquots, to) {
+
+convertAllUUIDs = function(cohort_uuids, from, to) {
     cohort_converts = list()
-    for (cohort in names(cohort_aliquots)) {
-        aliquots = cohort_aliquots[[cohort]]
-        cohort_converts[[cohort]] = convertAliquots(aliquots, to)
+    for (cohort in names(cohort_uuids)) {
+        uuids = cohort_uuids[[cohort]]
+        cohort_converts[[cohort]] = convertUUIDs(uuids, from, to)
     }
     return(cohort_converts)
 }
@@ -29,7 +40,6 @@ getAliquots = function(analysis, value, study, cohort) {
 getAllAliquots = function(analysis, value, study, cohorts) {
     cohort_aliquots = list()
     for (cohort in cohorts) {
-        print(cohort)
         cohort_aliquots[[cohort]] = getAliquots(analysis, value, study, cohort)
     }
     return(cohort_aliquots)
@@ -43,7 +53,10 @@ getSamplesTable = function(samples, cohort, cols=SAMPLE_COLS) {
     query = sprintf(
         "select distinct %s from biospecimen_sample_%s where lower(bcr_sample_uuid) in (?)", cs,
         tolower(cohort))
-    dbGetQuery(TCGA, query, samples)
+    tryCatch(dbGetQuery(TCGA, query, samples), error=function(e) {
+        #print(e)
+        NULL
+    })
 }
 getAllSamplesTable = function(cohort_samples, cols=SAMPLE_COLS) {
     tbls = list()
@@ -54,31 +67,32 @@ getAllSamplesTable = function(cohort_samples, cols=SAMPLE_COLS) {
     }
     unique(rbind.fill(tbls))
 }
-filterAliquotsBySample = function(aliquots, cohort, column, select) {
-    ch = tolower(cohort)
-    map = as.data.frame(TCGAMAP[aliquots, bio.bcr_sample_uuid])
-    q = dbGetQuery(TCGA, str_replace_all(sprintf(
-    "select distinct bcr_sample_uuid,%s from biospecimen_sample_@ where lower(bcr_sample_uuid) in (?)",
-        column), "@", ch), map$bio.bcr_sample_uuid)
-    tbl = merge(x=map, y=q, by.x="bio.bcr_sample_uuid", by.y="bcr_sample_uuid")
-    sel = (tbl[[column]] %in% select)
-    sel_aliquots = as.character(tbl[sel,][["bio.bcr_aliquot_uuid"]])
-}
-
-filterAllAliquotsByFunction = function(cohort_aliquots, func, ...) {
-    for (cohort in names(cohort_aliquots)) {
-        aliquots = cohort_aliquots[[cohort]]
-        aliquots_samplefiltered = filterAliquotsBySample(aliquots, cohort,
-                input$samplecolumn_a_query_cb,
-                input$samplefilter_a_select_cb,
-                samplecolumn, samplefilters)
-
+filterAliquotsBySampleFeatures = function(aliquots, cohort, column, select) {
+    if (length(aliquots) == 0) {
+        return(NULL)
     }
+    sel_aliquots = tryCatch(
+        {
+            map = as.data.frame(TCGAMAP_A[aliquots, bio.bcr_sample_uuid])
+            template = paste(
+                "select distinct",
+                "lower(bcr_sample_uuid) as bcr_sample_uuid, %s",
+                "from biospecimen_sample_@ where lower(bcr_sample_uuid) in (?)")
+            query = str_replace_all(sprintf(template, column), "@", tolower(cohort))
+            res = dbGetQuery(TCGA, query, map$bio.bcr_sample_uuid)
+            tbl = merge(x=map, y=res, by.x="bio.bcr_sample_uuid", by.y="bcr_sample_uuid")
+            tbl = tbl[!duplicated(tbl),] # why oh why
+            sel = (tbl[[column]] %in% select)
+            sel_aliquots = as.character(tbl[sel,][["bio.bcr_aliquot_uuid"]])
+        },
+        error = function(e) {print(e); NULL})
+    return(sel_aliquots)
 }
 
 ##
 getAllPatients = function(cohort) {
-    query = sprintf("select distinct bcr_patient_uuid from clinical_patient_%s", tolower(cohort))
+    query = sprintf("select distinct lower(bcr_patient_uuid) as bcr_patient_uuid from clinical_patient_%s",
+        tolower(cohort))
     dbGetQuery(TCGA, query)
 }
 
@@ -88,7 +102,10 @@ getPatientsTable = function(patients, cohort="PRAD", cols=PATIENT_COLS) {
     query = sprintf(
         "select distinct %s from clinical_patient_%s where lower(bcr_patient_uuid) in (?)", cs,
         tolower(cohort))
-    dbGetQuery(TCGA, query, patients)
+    tryCatch(dbGetQuery(TCGA, query, patients), error=function(e) {
+        #print(e)
+        NULL
+    })
 }
 getAllPatientsTable = function(cohort_patients, cols=PATIENT_COLS) {
     tbls = list()
@@ -99,14 +116,49 @@ getAllPatientsTable = function(cohort_patients, cols=PATIENT_COLS) {
     }
     unique(rbind.fill(tbls))
 }
-filterAliquotsByPatient = function(aliquots, cohort, column, select) {
-    map = as.data.frame(TCGAMAP[aliquots, shared.bcr_patient_uuid])
-    q = dbGetQuery(TCGA, str_replace_all(sprintf(
-    "select distinct bcr_patient_uuid,%s from clinical_patient_@ where lower(bcr_patient_uuid) in (?)",
-        column), "@", tolower(cohort)), map$shared.bcr_patient_uuid)
-    tbl = merge(x=map, y=q, by.x="shared.bcr_patient_uuid", by.y="bcr_patient_uuid")
-    sel = (tbl[[column]] %in% select)
-    sel_aliquots = as.character(tbl[sel,][["bio.bcr_aliquot_uuid"]])
+
+filterAliquotsByPatientFeatures = function(aliquots, cohort, column, select) {
+    if (length(aliquots) == 0) {
+        return(NULL)
+    }
+    sel_aliquots = tryCatch(
+        {
+            map = as.data.frame(TCGAMAP_A[aliquots, shared.bcr_patient_uuid])
+            template = paste(
+                "select distinct",
+                "lower(bcr_patient_uuid) as bcr_patient_uuid, %s",
+                "from clinical_patient_@ where lower(bcr_patient_uuid) in (?)")
+            query = str_replace_all(sprintf(template, column), "@", tolower(cohort))            
+            res = dbGetQuery(TCGA, query, map$shared.bcr_patient_uuid)
+            tbl = merge(x=map, y=res, by.x="shared.bcr_patient_uuid", by.y="bcr_patient_uuid")
+            tbl = tbl[!duplicated(tbl),] # why oh why
+            sel = (tbl[[column]] %in% select)
+            as.character(tbl[sel,][["bio.bcr_aliquot_uuid"]])
+        },
+        error = function(e) {
+            print(e)
+            NULL}
+        )
+    return(sel_aliquots)
+}
+
+
+filterAllAliquots = function(cohort_aliquots, samplecolumn, samplefilters, patientcolumn, patientfilters) {
+    res = list()
+    for (cohort in names(cohort_aliquots)) {
+        aliquots = cohort_aliquots[[cohort]]
+        print("a")
+        print(length(aliquots))
+        aliquots = filterAliquotsBySampleFeatures(aliquots, cohort, samplecolumn,
+            samplefilters)
+        print(length(aliquots))
+        aliquots = filterAliquotsByPatientFeatures(aliquots, cohort, patientcolumn,
+            patientfilters)
+        print(length(aliquots))
+        print("z")
+        res[[cohort]] = aliquots
+    }
+    return(res)
 }
 
 getPatientsTableJoin = function(patients, cohort, cols=PATIENT_COLS) {
@@ -155,11 +207,6 @@ getPatientsTableJoin = function(patients, cohort, cols=PATIENT_COLS) {
 
 
 
-
-
-
-
-
 ## cohortsToTable = function(analysis, value, study, cohorts, table_type) {
 ##     tbls = list()
 ##     for (cohort in cohorts) {
@@ -167,7 +214,7 @@ getPatientsTableJoin = function(patients, cohort, cols=PATIENT_COLS) {
 ##         func = switch(table_type, "sample"={getBioSample}, "patient"={getBioPatient})
 ##         col = switch(table_type, "sample"={"bio.bcr_sample_uuid"},
 ##                                  "patient"={"shared.bcr_patient_uuid"})
-##         conv = as.character(TCGAMAP[aliquots, col][[col]])
+##         convertAliquots = as.character(TCGAMAP[aliquots, col][[col]])
 ##         tbls[[cohort]] = func(samples, cohort)
 ##     }
 ##     tbl = rbind.fill(tbls)
