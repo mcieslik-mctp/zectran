@@ -441,7 +441,9 @@ shinyServer(function(input, output) {
         cohort_patients = lapply(convertAllUUIDs(cohort_aliquots, "aliquot", "patient"), unique)
     })
     a_refiltered_aliquots = reactive({
-        convertUUIDs(input$patientselect_a_select_cb, "patient", "aliquot")
+        a_filtered_aliquots = c(a_filtered_cohort_aliquots(), recursive=TRUE)
+        a_patientrefiltered_aliquots = convertUUIDs(input$patientselect_a_select_cb, "patient", "aliquot")
+        a_patientrefiltered_aliquots[a_patientrefiltered_aliquots %in% a_filtered_aliquots]
     })
     ## CB - ui - A
     output$cohort_a_select_cb = renderUI({
@@ -482,7 +484,7 @@ shinyServer(function(input, output) {
                     selected=selected, multiple=TRUE)
     })
 
-    ## CB - data - A
+    ## CB - data - B
     b_cohort_aliquots = reactive({
         cohort_aliquots()[input$cohort_b_select_cb]
     })
@@ -505,9 +507,12 @@ shinyServer(function(input, output) {
         cohort_patients = lapply(convertAllUUIDs(cohort_aliquots, "aliquot", "patient"), unique)
     })
     b_refiltered_aliquots = reactive({
-        convertUUIDs(input$patientselect_b_select_cb, "patient", "aliquot")
+        b_filtered_aliquots = c(b_filtered_cohort_aliquots(), recursive=TRUE)
+        b_patientrefiltered_aliquots = convertUUIDs(input$patientselect_b_select_cb, "patient", "aliquot")
+        b_patientrefiltered_aliquots[b_patientrefiltered_aliquots %in% b_filtered_aliquots]
     })
-    ## CB - ui - A
+    
+    ## CB - ui - B
     output$cohort_b_select_cb = renderUI({
         cohorts = all_cohorts()
         if (is.null(cohorts)) {
@@ -546,125 +551,47 @@ shinyServer(function(input, output) {
                     selected=selected, multiple=TRUE)
     })
 
+    ## CB - main
+    patient_clinical_cb = reactive({
+        tbls = list()
+        for (ab in c("a", "b")) {
+            filtered_cohort_patients = switch(ab, "a"=a_filtered_cohort_patients(),
+                                                  "b"=b_filtered_cohort_patients()
+                )
+            selected_patients = switch(ab, "a"=input$patientselect_a_select_cb,
+                                           "b"=input$patientselect_b_select_cb)
+            for (cohort in names(filtered_cohort_patients)) {
+                filtered_patients = filtered_cohort_patients[[cohort]]
+                selected_by_cohort = filtered_patients[filtered_patients %in% selected_patients]
+                if (length(selected_by_cohort) != 0) {
+                    tbls[[paste(ab, cohort, sep="_")]] = getPatientsTableJoin(selected_by_cohort,
+                            cohort)
+                }
+            }
+        }
+        unique(rbind.fill(tbls))
+    })
     
-
-    ## ## CB - main   
-    ## output$cohort_table_cb = renderTable({
-    ##     input$cohorts_ab_action_cb
-    ##     print("X")
-    ##     isolate({
-    ##         if (is.null(a_refiltered_aliquots()) || is.null(b_refiltered_aliquots())) {
-    ##             return(NULL)
-    ##         }
-    ##         print("x")
-    ##         print(a_refiltered_aliquots())
-    ##         a_aic = length(a_refiltered_aliquots())
-    ##         b_aic = length(b_refiltered_aliquots())           
-    ##         df = data.frame(
-    ##             c(a_aic, b_aic),
-    ##             row.names=c("cohort A", "cohort B"))
-    ##         colnames(df) = c("number of aliquots")
-    ##         return(df)
-    ##     })
-    ## })
-
-
-    ## ## CB - data - AB
-    ## ab_filtered_cohort_aliquots = reactive({
-    ##     ab_filters = list(
-    ##         a=list(
-    ##             cohort_aliquots=a_cohort_aliquots(),
-    ##             samplecolumn=input$samplecolumn_a_query_cb,
-    ##             samplefilters=input$samplefilter_a_select_cb,
-    ##             patientcolumn=input$patientcolumn_a_query_cb,
-    ##             patientfilters=input$patientfilter_a_select_cb),
-    ##         b=list(
-    ##             cohort_aliquots=b_cohort_aliquots(),
-    ##             samplecolumn=input$samplecolumn_b_query_cb,
-    ##             samplefilters=input$samplefilter_b_select_cb,
-    ##             patientcolumn=input$patientcolumn_b_query_cb,
-    ##             patientfilters=input$patientfilter_b_select_cb)
-    ##         )
-    ##     res=list()
-    ##     for (ab in names(ab_filters)) {
-    ##         res[[ab]] = list()            
-    ##         f = ab_filters[[ab]]
-    ##         cohort_aliquots = f[["cohort_aliquots"]]
-    ##         samplecolumn = f[["samplecolumn"]]
-    ##         samplefilters = f[["samplefilters"]]
-    ##         patientcolumn = f[["patientcolumn"]]
-    ##         patientfilters = f[["patientfilters"]]
-    ##         for (cohort in names(cohort_aliquots)) {
-    ##             aliquots = cohort_aliquots[[cohort]]
-    ##             tryCatch({
-    ##                 ## here aliquots are being filtered by patient and sample selects
-    ##                 aliquots = filterAliquotsBySample(aliquots, cohort, samplecolumn,
-    ##                     samplefilters)
-    ##                 aliquots = filterAliquotsByPatient(aliquots, cohort, patientcolumn,
-    ##                     patientfilters)
-    ##             }, error=function(e) NULL)
-    ##             res[[ab]][[cohort]] = aliquots
-    ##         }
-    ##     }
-    ##     return(res)        
-    ## })
-
-    ## ab_filtered_cohort_patients = reactive({
-    ##     inp = ab_filtered_cohort_aliquots()
-    ##     res = list()
-    ##     for (ab in names(inp)) {
-    ##         cohort_aliquots = inp[[ab]]
-    ##         ## multiple aliquots for the same patient need unique
-    ##         cohort_patients = lapply(convertAllAliquots(cohort_aliquots, "patient"), unique)
-    ##         res[[ab]] = cohort_patients
-    ##     }
-    ##     return(res)
-    ## })
-    ## patient_clinical_cb = reactive({
-    ##     if (is.null(ab_filtered_cohort_patients())) {
-    ##         return(NULL)
-    ##     }
-    ##     print("zz")
-    ##     tbls = list()
-    ##     for (ab in c("a", "b")) {
-    ##         print(ab)
-    ##         filtered_cohort_patients = ab_filtered_cohort_patients()[[ab]]
-    ##         selected_patients = switch(ab,"a"={input$patient_a_select_cb},
-    ##                                       "b"={input$patient_b_select_cb})
-    ##         print(selected_patients)
-    ##         for (cohort in names(filtered_cohort_patients)) {
-    ##             print(cohort)
-    ##             filtered_patients = filtered_cohort_patients[[cohort]]
-    ##             selected_by_cohort = filtered_patients[filtered_patients %in% selected_patients]
-    ##             if (length(selected_by_cohort) != 0) {
-    ##                 print("zzz")
-    ##                 tbls[[paste(ab, cohort, sep="_")]] = getPatientsTableJoin(selected_by_cohort,
-    ##                         cohort)
-    ##             }
-    ##         }
-    ##     }
-    ##     unique(mcolsrbind.fillrbind.fill(tbls))
-    ## })
+    output$patient_clinical_cb = renderDataTable({
+        input$cohorts_ab_action_cb
+        isolate({
+            patient_clinical_cb()
+        })
+    })
     
-    ## output$patient_clinical_cb = renderDataTable({
-    ##     patient_clinical_cb()
-    ## })
-
-    ##
-    ## output$cohorttally_table_da = renderTable({
-    ##     if (is.null(ab_filtered_cohort_aliquots())) {
-    ##         return(NULL)
-    ##     }
-    ##     rows = list()
-    ##     for (ab in c("a", "b")) {
-    ##         cohort_aliquots = ab_filtered_cohort_aliquots()[[ab]]
-    ##         for (cohort in names(cohort_aliquots)) {
-    ##             rows[[paste("cohort", toupper(ab), cohort)]] = list(
-    ##                     cases=as.integer(length(cohort_aliquots[[cohort]])))
-    ##         }
-    ##     }
-    ##     splat(rbind)(rows)
-    ## })    
+    output$cohort_table_cb = renderTable({
+        input$cohorts_ab_action_cb
+        isolate({
+            a_aic = length(a_refiltered_aliquots())
+            b_aic = length(b_refiltered_aliquots())            
+            df = data.frame(
+                c(a_aic, b_aic),
+                row.names=c("cohort A", "cohort B"))
+            colnames(df) = c("number of aliquots")
+            return(df)
+        })
+    })
+    
 })
         
 print("server")

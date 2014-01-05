@@ -16,28 +16,34 @@ shinyUI(pageWithSidebar(
                          ),
         
         conditionalPanel(condition="input.tabs == 'Cohort Builder'",
-                         h5("(sub)cohort A"),
-                         wellPanel(
-                             uiOutput("cohort_a_select_cb"),
-                             textInput("samplecolumn_a_query_cb", "sample filter column",
-                                       value="sample_type_id"),
-                             uiOutput("samplefilter_a_select_cb"),
-                             textInput("patientcolumn_a_query_cb", "patient filter column",
-                                       value="gleason_score"),
-                             uiOutput("patientfilter_a_select_cb"),
-                             uiOutput("patientselect_a_select_cb")
-                             ),
-                         h5("(sub)cohort B"),
-                         wellPanel(
-                             uiOutput("cohort_b_select_cb"),
-                             textInput("samplecolumn_b_query_cb", "Sample Column",
-                                       value="sample_type_id"),
-                             uiOutput("samplefilter_b_select_cb"),
-                             textInput("patientcolumn_b_query_cb", "patient filter column",
-                                       value="gleason_score"),
-                             uiOutput("patientfilter_b_select_cb"),
-                             uiOutput("patientselect_b_select_cb")
-                             ),
+                     tags$div(class = "row-fluid",
+                              tags$div(class = "span6",
+                                       h5("(sub)cohort A"),
+                                       wellPanel(
+                                           uiOutput("cohort_a_select_cb"),
+                                           textInput("samplecolumn_a_query_cb", "sample filter column",
+                                                     value="sample_type_id"),
+                                           uiOutput("samplefilter_a_select_cb"),
+                                           textInput("patientcolumn_a_query_cb", "patient filter column",
+                                                     value="gleason_score"),
+                                           uiOutput("patientfilter_a_select_cb"),
+                                           uiOutput("patientselect_a_select_cb")
+                                           )
+                                       ),
+                              tags$div(class = "span6",
+                                       h5("(sub)cohort B"),
+                                       wellPanel(
+                                           uiOutput("cohort_b_select_cb"),
+                                           textInput("samplecolumn_b_query_cb", "Sample Column",
+                                                     value="sample_type_id"),
+                                           uiOutput("samplefilter_b_select_cb"),
+                                           textInput("patientcolumn_b_query_cb", "patient filter column",
+                                                     value="gleason_score"),
+                                           uiOutput("patientfilter_b_select_cb"),
+                                           uiOutput("patientselect_b_select_cb")
+                                           )
+                                       )
+                              ),
                          actionButton("cohorts_ab_action_cb", "update cohorts")
                          ),
         
@@ -124,10 +130,10 @@ shinyUI(pageWithSidebar(
                      ),
 
             tabPanel("Cohort Builder",
+                     h4("Patient Inspector"),
+                     dataTableOutput("patient_clinical_cb"),
                      h4("Cohort Summary"),
-                     tableOutput("cohort_table_cb"),
-                     h4("Patient Summary"),
-                     dataTableOutput("patient_clinical_cb")
+                     tableOutput("cohort_table_cb")
                      ),
 
             tabPanel("Gene Query",
