@@ -37,6 +37,6 @@ ucsc2grl = function(ucsc) {
     return(tx_grs)
 }
 
-grl2probes = function() {
+grl2probes = function {
     findSpanOverlaps(grl, GR450K)
 }

@@ -65,3 +65,4 @@ getData = function(analysis, value, study, cohort, rows, cols, tbl=THETBL) {
     cidx = which(cid %in% cols)
     val[ridx, cidx]
 }
+
