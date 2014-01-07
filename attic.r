@@ -1,122 +1,106 @@
+## shinyUI(pageWithSidebar(
+
+##     headerPanel("Zectran the explorer"),
+
+##     sidebarPanel(
+
+##         conditionalPanel(condition="input.tabs == 'Dataset Summary'",
+##                          h5("Select Dataset(s)"),
+##                          wellPanel(
+##                              uiOutput("analysis_select_ds"),
+##                              uiOutput("value_select_ds"),
+##                              uiOutput("study_select_ds")
+##                              )
+##                          ),
+        
+##         conditionalPanel(condition="input.tabs == 'Cohort Builder'",
+##                      tags$div(class = "row-fluid",
+##                               tags$div(class = "span6",
+##                                        h5("(sub)cohort A"),
+##                                        wellPanel(
+##                                            uiOutput("cohort_a_select_cb"),
+##                                            textInput("samplecolumn_a_query_cb", "sample filter column",
+##                                                      value="sample_type_id"),
+##                                            uiOutput("samplefilter_a_select_cb"),
+##                                            textInput("patientcolumn_a_query_cb", "patient filter column",
+##                                                      value="gleason_score"),
+##                                            uiOutput("patientfilter_a_select_cb"),
+##                                            uiOutput("patientselect_a_select_cb")
+##                                            )
+##                                        ),
+##                               tags$div(class = "span6",
+##                                        h5("(sub)cohort B"),
+##                                        wellPanel(
+##                                            uiOutput("cohort_b_select_cb"),
+##                                            textInput("samplecolumn_b_query_cb", "Sample Column",
+##                                                      value="sample_type_id"),
+##                                            uiOutput("samplefilter_b_select_cb"),
+##                                            textInput("patientcolumn_b_query_cb", "patient filter column",
+##                                                      value="gleason_score"),
+##                                            uiOutput("patientfilter_b_select_cb"),
+##                                            uiOutput("patientselect_b_select_cb")
+##                                            )
+##                                        )
+##                               ),
+##                          actionButton("cohorts_ab_action_cb", "update cohorts")
+##                          ),
+        
+##         conditionalPanel(condition="input.tabs == 'Methylation Analysis'",
+##                          h5("Select Gene"),
+##                          wellPanel(
+##                              tags$div(class = "row-fluid",
+##                                       tags$div(class = "span6", textInput("hgnc_query_me", "HUGO (HGNC) gene name")),
+##                                       tags$div(class = "span6", textOutput("name_text_me"))
+##                              ),
+##                              actionButton("ucscmodel_action_me", "plot gene model")
+##                              ),
+##                          h5("Refine Region"),
+##                          wellPanel(
+##                              uiOutput("ucsc_select_me"),
+##                              selectInput("region_select_me", "select region",
+##                                          choices=c(
+##                                              "TSS slim (500, 200)",
+##                                              "TSS wide (2000, 500)",
+##                                              "gene regulatory region")),
+##                              uiOutput("refinedregion_query_me"),
+##                              actionButton("ucscregion_plot_me", "plot refined region")
+##                              )
+##                          )
+##     ),
+    
+##     mainPanel(
+        
+##         tabsetPanel(
+
+##             tabPanel("Dataset Summary",
+##                      h4("Dataset Summary"),
+##                      tableOutput("dataset_table_ds")
+##                      ),
+
+##             tabPanel("Cohort Builder",
+##                      h4("Patient Inspector"),
+##                      dataTableOutput("patient_clinical_cb"),
+##                      h4("Cohort Summary"),
+##                      tableOutput("cohort_table_cb")
+##                      ),
+
+##             tabPanel("Methylation Analysis",
+##                      h4("UCSC Gene Model"),
+##                      plotOutput("ucscmodel_plot_me", width=800),
+##                      h4("Selected UCSC Transcript"),
+##                      plotOutput("ucsctranscript_plot_me", width=800, height=300)
+##                      ),
+            
+##             id="tabs")
+##     )
+## ))
+
 ## Tables
-.cohort_description = function(cohorts) {
-    if (length(cohorts) == 0) {
-        return(NULL)}
-    
-    paste(cohorts, COHORT_DESC[cohorts, "full"], sep=": ", collapse="\n")
-}
 
-.cohort_samples = function(cohorts) {
-    if (length(cohorts) == 0) {
-        return(NULL)}
-    
-    df = ldply(cohorts, function(cohort) {
-        samples = get_samples(cohort)
-        cbind(cohort=cohort, array_450k_id=samples)
-    })
-    df = merge(df, ALIMETA, by="array_450k_id")
-    df$status = ifelse(df$bio.sample_type_id < 10, "Tumor", "Normal")
-    df$status = paste(df$status, " (", df$bio.sample_type_id, ") ", sep="")
-    df$admin.disease_code = NULL
-    df$bio.sample_type_id = NULL
-    return(df)
-}
 
-.cohort_summary = function(cohorts) {
-    if (length(cohorts) == 0) {
-        return(NULL)
-    }
-    
-    tab = as.matrix(t(xtabs(data=ALIMETA, rep(1,nrow(ALIMETA)) ~ admin.disease_code + bio.sample_type_id)))
-    cols = colnames(tab)
-    rows = rownames(tab)
-    storage.mode(tab) = "integer"
-    rownames(tab) = paste(c("primary", "recurrent", "blood", "new_primary", "metastasis", "tissue_normal"),
-                " (", rows, ")", sep="")
-    tab = as.data.frame.matrix(tab)
-    tab = tab[,colnames(tab) %in% cohorts, drop=FALSE]
-    return(tab)
-}
 
-.ensts_grl = function(ensts) {
-    if (length(ensts) == 0) {
-        return(NULL)}
-    
-    ensts_grl = enst2grl(ensts)
-    return(ensts_grl)
-}
 
-.ensts_grl_select = function(ensts_grl, select) {
-    if (length(ensts_grl) == 0) {
-        return(NULL)}
-    
-    switch(select,
-           "union"={
-               ensts_all = unlist(ensts_grl)
-               uni = reduce(ensts_all)
-               mcols(uni)$type = "exon"
-               mcols(uni)$exon_number = ifelse(strand(uni) == "+", 1:length(uni), length(uni):1)
-               unis = GRangesList()
-               gene_id = unique(mcols(ensts_all)$gene_id)
-               mcols(uni)$gene_id = gene_id
-               unis[[gene_id]] = uni
-               unis
-           },
-           "longest"={
-               ensts_width = unlist(lapply(ensts_grl, function(transcript) {
-                   max(end(transcript)) - min(start(transcript))
-               }))
-               select = names(ensts_width[order(ensts_width, decreasing=TRUE)[1]])
-               ensts_grl[select]
-           },
-           {ensts_grl[select]
-           })
-}
 
-.ensts_grl_select_region = function(ensts_grl_select, region) {
-    if (length(ensts_grl_select) == 0) {
-        return(NULL)
-    }
-    
-    transcript = ensts_grl_select[[1]] # should be only one
-    exon_number = mcols(transcript)$exon_number
-    switch(region,
-           "TSS slim (500, 200)"={
-               first_exon = transcript[exon_number == 1]
-               promoters(first_exon, 500, 200)
-           },
-           "TSS wide (2000, 500)"={
-               first_exon = transcript[exon_number == 1]
-               promoters(first_exon, 2000, 500)
-           },
-           "gene regulatory region"={
-               gene_flank(transcript, 2000, 2000)
-           }
-           )
-}
-
-.ensts_grl_select_region_str = function(ensts_grl_select_region) {
-    if (length(ensts_grl_select_region) == 0) {
-        return(NULL)}
-    
-    sprintf("%s:%s-%s", seqnames(ensts_grl_select_region),
-            start(ensts_grl_select_region),
-            end(ensts_grl_select_region))
-}
-
-.ensts_grl_select_region_str_parse = function(ensts_grl_select_region_str) {
-    if ((    length(ensts_grl_select_region_str) == 0 ) ||
-        (str_length(ensts_grl_select_region_str) == 0 ) ) {
-        return(NULL)}
-    
-    str_replace_all(ensts_grl_select_region_str, ",", "")
-    fields = unlist(str_split(str_split(ensts_grl_select_region_str, pattern=":")[[1]], "-"))
-    chr = fields[1]
-    start = as.integer(fields[2])
-    end = as.integer(fields[3])
-    gr = GRanges(seqnames=chr, ranges=IRanges(start=start, end=end), strand="*", type="range")
-    return(gr)
-}
 
 .cpg_info = function(cpg) {
     if (length(cpg) == 0) {
@@ -233,28 +217,8 @@
     
 }
 
-ensts = reactive({
-    if (is.null(input$select_ensg_gq) || input$select_ensg_gq == "invalid gene") {
-        return(NULL)
-    }
-    ensg = input$select_ensg_gq
-    ensts = ensg2enst(ensg)$enst
-    return(ensts)
-})
 
-output$select_enst_gq = renderUI(
-    selectInput("select_enst_gq", label="select transcript", choices=c("union", "longest", ensts()))
-    )
 
-ensts_grl = reactive({.ensts_grl(ensts())})
-
-ensts_tracks_gq = reactive({
-    input$plot_ensg_gq
-    isolate({
-        tks = .ensts_tracks_gq(ensts_grl())
-        print(tks)
-    })})
-output$ensts_tracks_gq = renderPlot(ensts_tracks_gq())
 
 
 ensts_grl_select = reactive({.ensts_grl_select(ensts_grl(), input$select_enst_gq)})
@@ -410,107 +374,7 @@ tabPanel("Sample Analysis",
          ),
 
 ##
-hgnc2ensg = function(hgnc) {
-    HGNC2ENSG[hgnc]
-}
 
-## print("2ensg-1")
-## out = getBM(MART, attributes=c("hgnc_symbol", "ensembl_gene_id"), filters=c("hgnc_symbol"), values=list(hgnc))
-## print("2ensg-2")
-## colnames(out) = c("hgnc", "ensg")
-## return(out)
-## ## MART
-## get_MART = function() {
-##     marts = listMarts()
-##     ensembl_version = str_extract(as.character(marts[marts$biomart == "ensembl","version"]), "([0-9]+)")
-##     stopifnot(ensembl_version == "73")
-##     MART = useMart("ensembl", "hsapiens_gene_ensembl")
-##     return(MART)
-## }
-## MART = get_MART()
-## out = getBM(MART, attributes=c("hgnc_symbol", "ensembl_gene_id"))
-
-
-##
-ensg2enst = function(ensg) {
-    out = suppressWarnings(
-        AnnotationDbi::select(TXDB, columns=c("GENEID", "TXNAME"), keytype="GENEID", keys=ensg))
-    colnames(out) = c("ensg", "enst")
-    return(out)
-}
-
-##
-enst2grl = function(enst) {
-    tx_query = suppressWarnings(
-        AnnotationDbi::select(TXDB, columns=columns(TXDB), keytype="TXNAME", keys=enst))
-    tx_ifull = IRanges(start=tx_query$EXONSTART, end=tx_query$EXONEND)
-    tx_gfull = GRanges(seqnames=tx_query$TXCHROM, ranges=tx_ifull,
-        strand=tx_query$TXSTRAND,
-        source=NA,
-        type="exon",
-        score=NA,
-        phase=NA,
-        gene_id=tx_query$GENEID,
-        transcript_id=tx_query$TXNAME,
-        exon_number=tx_query$EXONRANK,
-        gene_name=NA,
-        gene_biotype=NA,
-        transcript_name=NA,
-        exon_id=tx_query$EXONNAME,
-        protein_id=NA
-        )
-    tx_gfull = suppressWarnings(
-        keepSeqlevels(tx_gfull, c(1:22, "X", "Y"))
-        )
-    if (length(tx_gfull) > 0) {
-        tx_gfull = renameSeqlevels(tx_gfull, paste("chr", seqlevels(tx_gfull), sep=""))
-        seqlengths(tx_gfull) = CHR_LEN[names(seqlengths(tx_gfull))]
-        tx_grs = split(tx_gfull, tx_gfull$transcript_id)
-    } else {
-        tx_grs = tx_gfull # empty range
-    }
-    return(tx_grs)
-}
-
-grl2probes = function(grl) {
-    gr = unlist(grl)
-    if (length(gr) > 0) {
-        query = GRanges(
-        seqnames(gr)[1],
-        IRanges(min(start(gr)), max(end(gr))),
-        strand="*"
-        )
-        probes = GR450K[findOverlaps(query, GR450K)@subjectHits]
-    } else {
-        probes = GR450K[NULL]
-    }
-    return(probes)
-}
-
-gene_flank = function(transcript, upstream, downstream) {
-    exon_number = mcols(transcript)$exon_number
-    first_exon = transcript[exon_number == min(exon_number)]
-    last_exon  = transcript[exon_number == max(exon_number)]
-    if (as.vector(strand(first_exon)) == "+") {
-        tss = start(first_exon) - upstream
-        tts = end(last_exon) + downstream
-        tss_tts = IRanges(start=tss, end=tts)
-    } else {
-        tss = end(first_exon) + upstream
-        tts = start(last_exon) - downstream
-        tss_tts = IRanges(start=tts, end=tss)
-    }
-    ##
-    gr = GRanges(
-            seqnames=seqnames(first_exon),
-            ranges=tss_tts,
-            strand=strand(first_exon),
-            type="range",
-            gene_id=mcols(first_exon)$gene_id
-            #transcript_id=mcols(first_exon)$transcript_id[1]
-            )
-    return(gr)
-}
 
 
 ##
@@ -596,3 +460,51 @@ colnames(COHORT_DESC) = c("short", "full")
 ## setkey(HUGO2ENSG, gene_name)
 ## ENSG2ENST = data.table(as.data.frame(unique(mcols(ENSEMBL_GTF)[,c("gene_id", "transcript_id")])))
 ## setkey(ENSG2ENST, gene_id)
+
+get_cohorts = function() {
+    cl = listH5Contents(H5FILE)
+    tmp = cl[lapply(cl, "[[", "type") == 1]
+    cohorts = unlist(lapply(tmp, "[", "name"), use.names=FALSE)
+    return(cohorts)
+}
+
+get_samples = function(cohort) {
+    ds = getH5Dataset(H5FILE, paste("/450k/TCGA", cohort, sep="/"), inMemory=FALSE)
+    array_ids = getH5Attribute(ds, "ids")[]
+    return(array_ids)
+}
+
+get_var = function(cohort, percentiles=FALSE) {
+    ds = getH5Dataset(H5FILE_ROW, paste("/450k/TCGA", cohort, "var", sep="/"), inMemory=FALSE)
+    mx = ds[]
+    if (percentiles) {
+        mx = as.integer(cut(mx, quantile(mx, probs=seq(0, 1, 0.01)), labels=1:100))
+    }
+    return(mx)
+}
+
+get_beta_1 = function(cohort, sample, cg) {
+    cg_idx = match(cg, GR450K_IDS)
+    ds = getH5Dataset(H5FILE, paste("/450k/TCGA", cohort, sep="/"), inMemory=FALSE)
+    sm_idx = match(sample, getH5Attribute(ds, "ids")[])
+    beta = ds[cg_idx, sm_idx]
+    return(beta)
+}
+
+get_beta_n = function(cohorts, cgs) {
+    if (length(cohorts) > 0 && (length(cgs) > 0)) {
+        cgs_idx = which(GR450K_IDS %in% cgs)
+        betas = llply(cohorts, function(cohort) {
+            ds = getH5Dataset(H5FILE, paste("/450k/TCGA", cohort, sep="/"), inMemory=FALSE)
+            ids = getH5Attribute(ds, "ids")[]
+            cohort_betas = ds[cgs_idx,,]
+            cohort_betas = matrix(cohort_betas, nrow=length(cgs), ncol=length(ids))
+            colnames(cohort_betas) = ids
+            rownames(cohort_betas) = cgs
+            return(cohort_betas)
+        })
+        names(betas) = cohorts
+        return(betas)
+    }
+}
+

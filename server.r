@@ -3,9 +3,6 @@ source("tcga.r")
 source("util.r")
 source("convert.r")
 
-#source("convert_old.r")
-#source("global_old.r")
-
 shinyServer(function(input, output) {
     
     ## Dataset Summary
@@ -239,22 +236,158 @@ shinyServer(function(input, output) {
         })
     })
 
-    ####
-    ucscs = reactive({
-        hgnc = input$hgnc_query_gq
-        if (str_length(hgnc) > 0) {
-            ucscs = hgnc2ucsc(hgnc)$ucsc
-            if (length(ucscs) > 0) {
-                return(ucscs)
-            }
+    output$name_text_me = renderText({
+        HGNC = toupper(input$hgnc_query_me)
+        name = hgnc2name(HGNC)$name
+        if (length(name) == 0) {
+            name = sprintf("gene symbol '%s' not found", HGNC)
         }
-        return(c("invalid gene"))
+        return(name)
+    })
+
+    ucscs = reactive({
+        HGNC = toupper(input$hgnc_query_me)
+        hgnc2ucsc(HGNC)$ucsc        
+    })
+
+    ucscs_grl = reactive({
+        ucsc2grl(ucscs())
     })
     
-    output$ucsc_select_gq = renderUI(
-        selectInput("select_ensg_gq", label="select gene", choices=ensgs()))
+    ucscmodel_plot_me = reactive({
+        input$ucscmodel_action_me
+        isolate({
+            grl = ucscs_grl()
+            plt = tracks(
+                autoplot(grl, group.selfish=TRUE, gap.geom="arrow") + theme_bw() + scale_x_sequnit("kb")
+                )
+            print(plt)
+        })})
+    
+    output$ucscmodel_plot_me = renderPlot(ucscmodel_plot_me())
+
+    ###
+    
+    ucsc_select_me = reactive({
+        txs = ucscs()
+        if (length(txs) == 0) {
+            return("no transcripts found") 
+        }
+        txs = c("union", "longest", txs)
+        return(txs)
+    })
+    
+    output$ucsc_select_me = renderUI(
+        selectInput("ucsc_select_me", label="select transcript", choices=ucsc_select_me()))
+    
+    ucscs_grl_select = reactive({
+        grl = ucscs_grl()
+        select = input$ucsc_select_me
+        switch(select,
+               "union"={
+                   all = unlist(grl)
+                   uni = reduce(all)
+                   mcols(uni)$type = "exon"
+                   mcols(uni)$exon_number = ifelse(strand(uni) == "+", 1:length(uni), length(uni):1)
+                   unis = GRangesList()
+                   gene_id = unique(mcols(all)$gene_id)
+                   mcols(uni)$gene_id = gene_id
+                   unis[[gene_id]] = uni
+                   unis
+               },
+               "longest"={
+                   grl_width = unlist(lapply(grl, function(transcript) {
+                       max(end(transcript)) - min(start(transcript))
+                   }))
+                   select = names(grl_width[order(grl_width, decreasing=TRUE)[1]])
+                   grl[select]
+               },
+               grl[select]
+               )
+    })
+
+    ucscs_grl_select_region = reactive({
+        transcript = ucscs_grl_select()[[1]] # should be only one
+        exon_number = mcols(transcript)$exon_number
+        switch(input$region_select_me,
+               "TSS slim (500, 200)"={
+                   first_exon = transcript[exon_number == 1]
+                   promoters(first_exon, 500, 200)
+               },
+               "TSS wide (2000, 500)"={
+                   first_exon = transcript[exon_number == 1]
+                   promoters(first_exon, 2000, 500)
+               },
+               "gene regulatory region"={
+                   flankTranscript(transcript, 2000, 2000)
+               }
+               )
+    })
+    
+    ucscs_grl_select_region_str = reactive({
+        print(ucscs_grl_select_region())
+        sprintf("%s:%s-%s", seqnames(ucscs_grl_select_region()),
+                start(ucscs_grl_select_region()),
+                end(ucscs_grl_select_region()))
+    })
+
+    output$refinedregion_query_me = renderUI(
+        textInput("refinedregion_query_me", label="limit region",
+                  tryCatch(ucscs_grl_select_region_str(), error=function(e) "select transcript & region")))
+
+    ucscs_grl_select_region_limit = reactive({
+        input$refinedregion_query_me
+        
+        str_replace_all(input$refinedregion_query_me, ",", "")
+        fields = unlist(str_split(str_split(input$refinedregion_query_me, pattern=":")[[1]], "-"))
+        chr = fields[1]
+        start = as.integer(fields[2])
+        end = as.integer(fields[3])
+        gr = GRanges(seqnames=chr, ranges=IRanges(start=start, end=end), strand="*", type="range")
+        return(gr)
+
+    })
+    
+
+    
+
+
+
+    
+
+
+
+
+
+
+
+## ensts_grl_select_region_limit_probes = reactive({grl2probes(ensts_grl_select_region_limit())})
+
+## ensts_select_tracks_gq = reactive({
+##     input$plot_enst_gq
+##     isolate({
+##         tks = .ensts_select_tracks_gq(
+##             ensts_grl_select(),
+##             ensts_grl_select_region_limit(),
+##             ensts_grl_select_region_limit_probes())
+##         print(tks)
+##     })})
+## output$ensts_select_tracks_gq = renderPlot(ensts_select_tracks_gq())
+
+## ensts_grl_select_region_limit_probes_names = reactive({.ensts_grl_select_region_limit_probes_names(
+##     ensts_grl_select_region_limit_probes())})
+
+## output$select_cg_gq = renderUI(selectInput("select_cg_gq", label="select probes",
+##     choices=ensts_grl_select_region_limit_probes_names(), multiple=TRUE))
+
+
+
+    
+
+    
     
 
 })
+suppressMessages(library("ggbio"))
 
 print("server")

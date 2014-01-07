@@ -1,9 +1,25 @@
-hgnc2ucsc = function(hgnc) {
-    out = suppressWarnings(
-        AnnotationDbi::select(org.Hs.eg.db, keys=c(hgnc), columns=c("UCSCKG"), keytype="SYMBOL")
-        )
-    colnames(out) = c("hgnc", "ucsc")
+safeSelect = function(db, keys, columns, keytype, names) {
+    out = tryCatch(
+        as.data.frame(
+            suppressWarnings(
+                AnnotationDbi::select(db, keys=keys, columns=columns, keytype=keytype)
+                )),
+        error=function(e) data.frame(replicate(length(columns) + 1, character(0))))
+    colnames(out) = names
     return(out)
+}
+
+
+hgnc2ucsc = function(hgnc) {
+    safeSelect(org.Hs.eg.db, hgnc, columns=c("UCSCKG"), keytype="SYMBOL", c("hgnc", "ucsc"))
+}
+
+hgnc2name = function(hgnc) {
+    safeSelect(org.Hs.eg.db, hgnc, columns=c("GENENAME"), keytype="SYMBOL", c("hgnc", "name"))
+}
+
+hgnc2eg = function(hgnc) {
+    safeSelect(org.Hs.eg.db, hgnc, columns=c("ENTREZID"), keytype="SYMBOL", c("hgnc", "eg"))
 }
 
 ucsc2grl = function(ucsc) {
@@ -38,5 +54,5 @@ ucsc2grl = function(ucsc) {
 }
 
 grl2probes = function() {
-    findSpanOverlaps(grl, GR450K)
+    findSpanOverlaps(grl, GR_450K)
 }
