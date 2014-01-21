@@ -5,7 +5,8 @@ THETBL = H5File("tables/THETBL.h5", "r")
 CONTENTS = readRDS("tables/THETBL.rds", "r")
 
 .getChildren = function(root, depth=1) {
-    tryCatch({
+    capture.output({
+        res = tryCatch({
         root_name = ifelse(root@name==".", "/", paste("/", root@name, "/", sep=""))
         leafs = paste("/", names(CONTENTS)[2:length(CONTENTS)], sep="")
         matches = grepl(paste("^", root_name, sep=""), leafs)
@@ -15,6 +16,8 @@ CONTENTS = readRDS("tables/THETBL.rds", "r")
         values = lnames[ldepth %in% depth]
         values = str_replace(values, root_name, "")
     }, error=function(e) NULL)
+    })
+    return(res)
 }
 .getH5Group = function(...) {
     tryCatch(getH5Group(...),

@@ -1,6 +1,6 @@
-library(stringr)
-library(data.table)
-library(RSQLite)
+suppressMessages(library(stringr))
+suppressMessages(library(data.table))
+suppressMessages(library(RSQLite))
 
 TCGAMAP_A = readRDS("tables/TCGAMAP.rds")
 setkey(TCGAMAP_A, "bio.bcr_aliquot_uuid")
@@ -147,15 +147,10 @@ filterAllAliquots = function(cohort_aliquots, samplecolumn, samplefilters, patie
     res = list()
     for (cohort in names(cohort_aliquots)) {
         aliquots = cohort_aliquots[[cohort]]
-        print("a")
-        print(length(aliquots))
         aliquots = filterAliquotsBySampleFeatures(aliquots, cohort, samplecolumn,
             samplefilters)
-        print(length(aliquots))
         aliquots = filterAliquotsByPatientFeatures(aliquots, cohort, patientcolumn,
             patientfilters)
-        print(length(aliquots))
-        print("z")
         res[[cohort]] = aliquots
     }
     return(res)

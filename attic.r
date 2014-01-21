@@ -508,3 +508,87 @@ get_beta_n = function(cohorts, cgs) {
     }
 }
 
+## which.max(sapply(width(transcripts), sum))
+## grl_width = unlist(lapply(grl, function(transcript) {
+##     max(end(transcript)) - min(start(transcript))
+## }))
+## select = names(grl_width[order(grl_width, decreasing=TRUE)[1]])
+## grl[select]
+## ensts_grl_select_region_limit_probes = reactive({grl2probes(ensts_grl_select_region_limit())})
+## ensts_select_tracks_gq = reactive({
+##     input$plot_enst_gq
+##     isolate({
+##         tks = .ensts_select_tracks_gq(
+##             ensts_grl_select(),
+##             ensts_grl_select_region_limit(),
+##             ensts_grl_select_region_limit_probes())
+##         print(tks)
+##     })})
+## output$ensts_select_tracks_gq = renderPlot(ensts_select_tracks_gq())
+## ensts_grl_select_region_limit_probes_names = reactive({.ensts_grl_select_region_limit_probes_names(
+##     ensts_grl_select_region_limit_probes())})
+## output$select_cg_gq = renderUI(selectInput("select_cg_gq", label="select probes",
+##     choices=ensts_grl_select_region_limit_probes_names(), multiple=TRUE))
+## a_cohort_aliquots_pds = reactive({
+##     getAllAliquots(input$analysis_a_select_ds, input$value_a_select_ds, input$study_a_select_ds, all_cohorts_pds())
+## })
+## b_cohort_aliquots_pds = reactive({
+##     getAllAliquots(input$analysis_a_select_ds, input$value_a_select_ds, input$study_a_select_ds, all_cohorts_pds())
+## })
+## output$dataset_table_ds = renderTable({
+##     if (is.null(cohort_aliquots())) {
+##         return(NULL)
+##     }
+##     ldply(names(cohort_aliquots()), function(cohort) {
+##         aliquots = cohort_aliquots()[[cohort]]
+##         n_aliquots = length(aliquots)
+##         n_tumor = length(unique(
+##             convertUUIDs(aliquots, "aliquot", "patient")))
+##         n_cohort_clinical = tryCatch({
+##             nrow(getAllPatients(cohort))
+##         }, error = function(e) {0L})
+##         df = data.frame(cohort, aliquots=length(aliquots), n_tumor, n_cohort_clinical)
+##         names(df) = c("cohort", "aliquots", "primary tumor", "TCGA cohort size (all samples w/ clinical data)")
+##         return(df)
+##     })
+## })
+## #### Gene Query (GQ)
+## output$name_text_gq = renderText({
+##     HGNC = toupper(input$hgnc_query_gq)
+##     name = hgnc2name(HGNC)$name
+##     if (length(name) == 0) {
+##         name = sprintf("gene symbol '%s' not found", HGNC)
+##     }
+##     return(name)
+## })
+## ucscs_gq = reactive({
+##     HGNC = toupper(input$hgnc_query_gq)
+##     ucsc2ucsc(hgnc2ucsc(HGNC)$ucsc)
+## })
+## ucscs_gq_grl = reactive({
+##     ucsc2grl(ucscs_gq())
+## })
+## ucscmodel_plot_gq = reactive({
+##     input$ucscmodel_action_gq
+##     isolate({
+##         grl = ucscs_gq_grl()
+##         plt = tracks(
+##                 autoplot(grl, group.selfish=TRUE, gap.geom="arrow") + theme_bw() + scale_x_sequnit("kb")
+##             )
+##         print(plt)
+##     })})
+## output$ucsc_select_gq = renderUI({
+##     transcripts = ucscs_gq()
+##     canonical = getCanonicalTranscript(ucscs_gq_grl())
+##     if (length(transcripts) == 0) {
+##         transcripts = "no transcripts found"
+##         canonical = NULL
+##     }
+##     selectInput("ucsc_select_gq", label="select transcript(s)", choices=transcripts,
+##                 selected=canonical,
+##                 multiple=TRUE)
+## })
+## output$ucscmodel_plot_gq = renderPlot(safeEval(ucscmodel_plot_gq))
+## output$ucscselect_text_gq = renderText({
+##     paste("selected transcripts:", paste(input$ucsc_select_gq, collapse=", "))
+## })

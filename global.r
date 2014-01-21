@@ -2,7 +2,6 @@ options(stringsAsFactors=FALSE)
 SYNC = Sys.getenv("SYNC")
 
 ## imports
-suppressMessages(library("GenomicFeatures"))
 suppressMessages(library("BSgenome.Hsapiens.UCSC.hg19")) # Hsapiens
 suppressWarnings(library(org.Hs.eg.db)) # conversions
 suppressMessages(library(IlluminaHumanMethylation450kanno.ilmn12.hg19))

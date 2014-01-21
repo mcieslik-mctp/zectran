@@ -5,8 +5,9 @@ source("util.r")
 source("convert.r")
 
 
-## ucsc = hgnc2ucsc("ZEB2")$ucsc[1]
-## grl = ucsc2grl(ucsc)
-## print(grl)
+ucsc = hgnc2ucsc("KLK3")$ucsc
+
+
+
 
 
