@@ -20,12 +20,18 @@ CONTENTS = readRDS("tables/THETBL.rds", "r")
     return(res)
 }
 .getH5Group = function(...) {
-    tryCatch(getH5Group(...),
-             error=function(e) NULL)
+    capture.output({
+        res = tryCatch(getH5Group(...),
+            error=function(e) NULL)
+    })
+    return(res)
 }
 .getH5Dataset = function(...) {
-    tryCatch(getH5Dataset(...),
-             error=function(e) NULL)
+    capture.output({
+        res = tryCatch(getH5Dataset(...),
+            error=function(e) NULL)
+    })
+    return(res)
 }
 
 getAnalyses = function(tbl=THETBL) {
@@ -68,4 +74,3 @@ getData = function(analysis, value, study, cohort, rows, cols, tbl=THETBL) {
     cidx = which(cid %in% cols)
     val[ridx, cidx]
 }
-

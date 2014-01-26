@@ -468,7 +468,8 @@ shinyServer(function(input, output) {
                 mcols(txs)$selected = names(txs) %in% names(tx)
                 plt = silentExec(
                     tracks(
-                        autoplot(txs, group.selfish=TRUE, gap.geom="arrow", aes(fill=selected, color=selected)) + theme_bw() +
+                        autoplot(txs, group.selfish=TRUE, gap.geom="arrow", aes(fill=selected, color=selected)) +
+                        theme_bw() +
                         scale_x_sequnit("kb") +
                         scale_fill_manual(values=c("black", "red")) +
                         scale_color_manual(values=c("black", "red"))
@@ -482,23 +483,25 @@ shinyServer(function(input, output) {
         }
     })
 
-     output$dataset_text_ea = renderText({
-         HTML(paste(
-             paste("analysis:", input$analysis_select_ids),
-             paste("value:", input$value_select_ids),
-             paste("study:", input$study_select_ids),
-             sep="<br>"))
-     })
-
-
-     output$cohorts_text_ea = renderText({
-         HTML(paste(
-             paste("cohort A"),
-             paste("&nbsp&nbsp&nbsp&nbspsize:", length(a_refiltered_aliquots())),
-             paste("cohort B"),
-             paste("&nbsp&nbsp&nbsp&nbspsize:", length(b_refiltered_aliquots())),
-             sep="<br>"))
-     })
+    ## I (ide Panel
+    output$dataset_text_ea = renderText({
+        HTML(paste(
+            paste("analysis:", input$analysis_select_ids),
+            paste("value:", input$value_select_ids),
+            paste("study:", input$study_select_ids),
+            sep="<br>"))
+    })
+    output$cohorts_text_ea = renderText({
+        HTML(paste(
+            paste("cohort A"),
+            paste("&nbsp&nbsp&nbsp&nbspsize:", length(a_refiltered_aliquots())),
+            paste("cohort B"),
+            paste("&nbsp&nbsp&nbsp&nbspsize:", length(b_refiltered_aliquots())),
+            sep="<br>"))
+    })
+    
+    
+    
 })
 
 print("server")

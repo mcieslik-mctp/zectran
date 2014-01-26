@@ -118,7 +118,37 @@ shinyUI(
                                         id="tabs_pds")
                                 )
                         )),
-                        
+
+               tabPanel("Gene Query and Probe Mapping",
+                        sidebarLayout(
+                            sidebarPanel(
+                                conditionalPanel(condition="input.tabs_gp == 'Gene Query'",
+                                                 h5("Select Gene"),
+                                                 wellPanel(
+                                                     fluidRow(
+                                                         column(width=6, textInput("hgnc_query_ea", "HUGO (HGNC) gene name")),
+                                                         column(width=6, textOutput("name_text_ea"))
+                                                         ),
+                                                     uiOutput("ucsc_select_ea"),
+                                                     actionButton("ucscmodel_action_ea", "plot gene model")
+                                                     )
+                                                 ),
+                                conditionalPanel(condition="input.tabs_gp == 'Probe Mapping'",
+                                                 h5("Probe Mapping")
+                                                 )
+                                    ),
+                            mainPanel(
+                                    tabsetPanel(
+                                        tabPanel("Gene Query",
+                                                 h4("UCSC Gene Model"),
+                                                 plotOutput("ucscmodel_plot_ea", width=800)
+                                                 ),
+                                        tabPanel("Probe Mapping",
+                                                 h4("Probe Mapping")
+                                                 ),
+                                        id="tabs_gp")
+                                )
+                        )),
 
                ## MA
                tabPanel("Methylation Analysis",
@@ -181,17 +211,6 @@ shinyUI(
                tabPanel("Expression Analysis",
                         sidebarLayout(
                             sidebarPanel(
-                                conditionalPanel(condition="input.tabs_ea == 'Gene Query'",
-                                                 h5("Select Gene"),
-                                                 wellPanel(
-                                                     fluidRow(
-                                                         column(width=6, textInput("hgnc_query_ea", "HUGO (HGNC) gene name")),
-                                                         column(width=6, textOutput("name_text_ea"))
-                                                         ),
-                                                     uiOutput("ucsc_select_ea"),
-                                                     actionButton("ucscmodel_action_ea", "plot gene model")
-                                                     )
-                                                 ),
                                 conditionalPanel(condition="input.tabs_ea == 'Individual Dataset Analysis'",
                                                  h5("Dataset"),
                                                  htmlOutput("dataset_text_ea"),
@@ -204,10 +223,6 @@ shinyUI(
                                 ),
                             mainPanel(
                                 tabsetPanel(
-                                    tabPanel("Gene Query",
-                                             h4("UCSC Gene Model"),
-                                             plotOutput("ucscmodel_plot_ea", width=800)
-                                             ),
                                     tabPanel("Individual Dataset Analysis",
                                              h4("Individual Dataset Analysis")
                                              ),
